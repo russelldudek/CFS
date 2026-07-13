@@ -28,11 +28,12 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Unpack complete campaign source
+      - name: Unpack byte-verified campaign source
         run: |
-          cat .campaign-source/source-* | base64 --decode > /tmp/cfs-source.tgz
+          cat .campaign-source-v2/part-* | base64 --decode > /tmp/cfs-source.tgz
+          echo "f41055814b3f6ecc0087dc7054e57f680ef0ec6970d0f5398b3c24d4233e167b  /tmp/cfs-source.tgz" | sha256sum --check
           tar -xzf /tmp/cfs-source.tgz -C .
-          rm -rf .campaign-source
+          rm -rf .campaign-source .campaign-source-v2
 
       - name: Set up Python
         uses: actions/setup-python@v5
