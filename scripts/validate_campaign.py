@@ -16,10 +16,23 @@ EXPECTED_PAGES = {
 }
 TEXT_EXTENSIONS = {".html", ".css", ".js", ".py", ".yml", ".yaml", ".md", ".txt", ".xml", ".json", ".svg"}
 FORBIDDEN = re.compile("role" + r"[\s_-]*" + "forge", re.IGNORECASE)
+GOOGLE_AI = "Google AI Essentials"
+IBM_DESIGN = "IBM Enterprise Design Thinking Practitioner"
 
 
 def fail(message: str) -> None:
     raise AssertionError(message)
+
+
+def check_credential_order(text: str, surface: str) -> None:
+    google_position = text.find(GOOGLE_AI)
+    ibm_position = text.find(IBM_DESIGN)
+    if google_position < 0:
+        fail(f"{surface}: missing {GOOGLE_AI}")
+    if ibm_position < 0:
+        fail(f"{surface}: missing {IBM_DESIGN}")
+    if google_position > ibm_position:
+        fail(f"{surface}: {GOOGLE_AI} must appear above {IBM_DESIGN}")
 
 
 def check_pdfs() -> None:
@@ -33,6 +46,8 @@ def check_pdfs() -> None:
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         if "Russell" not in text or "Dudek" not in text:
             fail(f"Candidate identity missing from {filename}")
+        if filename == "Russell-Dudek-CFS-Resume.pdf":
+            check_credential_order(text, filename)
         for page in reader.pages:
             width = float(page.mediabox.width)
             height = float(page.mediabox.height)
@@ -70,6 +85,7 @@ def check_contacts_and_links() -> None:
     ):
         if value not in resume or value not in cover:
             fail(f"Missing verified contact value: {value}")
+    check_credential_order(resume, "resume.html")
     if "Justin Bentham" not in cover or "jbentham@cfstaffing.com" not in cover:
         fail("Justin Bentham addressee block is incomplete")
     if 'href="cover-letter.html"' not in resume or "View Cover Letter" not in resume:
