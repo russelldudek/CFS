@@ -1,0 +1,61 @@
+name: Repair proof section
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-proof-section.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repair heading and proof timeline geometry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index = Path("index.html")
+          text = index.read_text(encoding="utf-8")
+          old_heading = "An operator who makes systems become work."
+          new_heading = "An operator who turns technology into better operations."
+          if old_heading not in text:
+              raise SystemExit("Expected proof heading was not found")
+          index.write_text(text.replace(old_heading, new_heading, 1), encoding="utf-8")
+
+          styles = Path("styles.css")
+          text = styles.read_text(encoding="utf-8")
+          old_role = ".proof-role { text-align: right; }"
+          new_role = ".proof-role { text-align: right; padding-right: .4rem; min-width: 0; }"
+          old_marker = "left:-2.72rem; top:.35rem;"
+          new_marker = "left:-1.6rem; top:.35rem;"
+          if old_role not in text or old_marker not in text:
+              raise SystemExit("Expected proof timeline CSS was not found")
+          text = text.replace(old_role, new_role, 1).replace(old_marker, new_marker, 1)
+          styles.write_text(text, encoding="utf-8")
+
+          validator = Path("scripts/validate_browser.py")
+          text = validator.read_text(encoding="utf-8")
+          needle = '''                if errors:\n                    findings.append(f"{route} {width}x{height}: {errors}")\n                passes += 1\n'''
+          replacement = '''                if errors:\n                    findings.append(f"{route} {width}x{height}: {errors}")\n                if route == "index.html" and width > 840:\n                    overlaps = page.evaluate("""() => [...document.querySelectorAll('.proof-item')].map(item => {\n                        const role = item.querySelector('.proof-role strong');\n                        const copy = item.querySelector('.proof-copy');\n                        const marker = getComputedStyle(copy, '::before');\n                        const roleRect = role.getBoundingClientRect();\n                        const copyRect = copy.getBoundingClientRect();\n                        const markerLeft = copyRect.left + parseFloat(marker.left);\n                        return {name: role.textContent.trim(), roleRight: roleRect.right, markerLeft};\n                    }).filter(item => item.roleRight > item.markerLeft - 4)""")\n                    if overlaps:\n                        findings.append(f"{route} {width}x{height}: proof labels overlap markers {overlaps}")\n                passes += 1\n'''
+          if needle not in text:
+              raise SystemExit("Expected browser validation insertion point was not found")
+          validator.write_text(text.replace(needle, replacement, 1), encoding="utf-8")
+          PY
+
+      - name: Commit repair and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/repair-proof-section.yml
+          git add index.html styles.css scripts/validate_browser.py
+          git commit -m "Clarify proof section and prevent label-marker overlap"
+          git push
