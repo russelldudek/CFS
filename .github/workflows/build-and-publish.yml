@@ -13,6 +13,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  statuses: write
 
 concurrency:
   group: candidate-site-${{ github.event_name }}-${{ github.ref }}
@@ -21,6 +22,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      published_sha: ${{ steps.publish.outputs.sha }}
     steps:
       - name: Check out campaign source
         uses: actions/checkout@v4
@@ -67,7 +70,22 @@ jobs:
           python scripts/validate_campaign.py
           python scripts/validate_browser.py
 
+      - name: Upload validated campaign artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfs-campaign-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            *.html
+            *.css
+            *.js
+            *.md
+            assets/brand/cfs-logo.jpg
+            docs/*.pdf
+            scripts/*.py
+
       - name: Publish verified generated files to main
+        id: publish
         if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
@@ -77,6 +95,7 @@ jobs:
             git commit -m "Regenerate verified CFS campaign documents [skip ci]"
             git push origin HEAD:main
           fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Configure Pages
         if: github.event_name != 'pull_request'
@@ -97,7 +116,110 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verify-live:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    env:
+      BASE_URL: ${{ needs.deploy.outputs.page_url }}
+      PUBLISHED_SHA: ${{ needs.build.outputs.published_sha }}
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install live verification tooling
+        run: python -m pip install pypdf
+
+      - name: Verify live pages and resume PDF
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import io
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          from pypdf import PdfReader
+
+          base = os.environ["BASE_URL"].rstrip("/") + "/"
+          sha = os.environ["PUBLISHED_SHA"]
+          google = "Google AI Essentials"
+          ibm = "IBM Enterprise Design Thinking Practitioner"
+
+          def fetch(path: str) -> bytes:
+              url = f"{base}{path}?audit={sha}"
+              last_error: Exception | None = None
+              for _ in range(18):
+                  try:
+                      request = urllib.request.Request(
+                          url,
+                          headers={"User-Agent": "CFS-candidate-campaign-live-audit"},
+                      )
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          if response.status != 200:
+                              raise RuntimeError(f"{url}: HTTP {response.status}")
+                          return response.read()
+                  except (OSError, RuntimeError, urllib.error.URLError) as exc:
+                      last_error = exc
+                      time.sleep(5)
+              raise RuntimeError(f"Unable to retrieve {url}: {last_error}")
+
+          home = fetch("").decode("utf-8", errors="replace")
+          if "Make data coherent. Make AI consequential." not in home:
+              raise AssertionError("Live homepage thesis is missing")
+
+          resume_html = fetch("resume.html").decode("utf-8", errors="replace")
+          google_position = resume_html.find(google)
+          ibm_position = resume_html.find(ibm)
+          if google_position < 0 or ibm_position < 0 or google_position > ibm_position:
+              raise AssertionError("Live resume HTML credential order is incorrect")
+
+          resume_pdf = fetch("docs/Russell-Dudek-CFS-Resume.pdf")
+          if not resume_pdf.startswith(b"%PDF"):
+              raise AssertionError("Live resume download is not a PDF")
+          reader = PdfReader(io.BytesIO(resume_pdf))
+          if len(reader.pages) != 2:
+              raise AssertionError(f"Live resume PDF has {len(reader.pages)} pages")
+          pdf_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+          google_position = pdf_text.find(google)
+          ibm_position = pdf_text.find(ibm)
+          if google_position < 0 or ibm_position < 0 or google_position > ibm_position:
+              raise AssertionError("Live resume PDF credential order is incorrect")
+
+          print(f"Live campaign verified at {base} for published commit {sha}")
+          PY
+
+      - name: Record live verification success
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PUBLISHED_SHA}" \
+            -f state=success \
+            -f context='candidate-campaign/pages-live' \
+            -f description='Live homepage, resume HTML, and 2-page resume PDF verified' \
+            -f target_url="${BASE_URL}"
+
+      - name: Record live verification failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PUBLISHED_SHA}" \
+            -f state=failure \
+            -f context='candidate-campaign/pages-live' \
+            -f description='Live candidate campaign verification failed' \
+            -f target_url="${BASE_URL}"
