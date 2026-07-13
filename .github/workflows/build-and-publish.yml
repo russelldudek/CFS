@@ -1,0 +1,89 @@
+name: Build documents and publish candidate site
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: candidate-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Unpack complete campaign source
+        run: |
+          cat .campaign-source/source-* | base64 --decode > /tmp/cfs-source.tgz
+          tar -xzf /tmp/cfs-source.tgz -C .
+          rm -rf .campaign-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install document and browser tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright pypdf
+          python -m playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y fonts-lato
+
+      - name: Fetch official CFS identity asset
+        run: |
+          mkdir -p assets/brand
+          curl --fail --location --silent --show-error \
+            "https://www.cfstaffing.com/wp-content/uploads/2025/10/Creative-Financial-Staffing-Logo-2025.jpg" \
+            --output assets/brand/cfs-logo.jpg
+
+      - name: Generate PDFs
+        run: python scripts/generate_pdfs.py
+
+      - name: Validate campaign
+        run: |
+          python scripts/validate_campaign.py
+          python scripts/validate_browser.py
+
+      - name: Publish verified campaign to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish complete CFS candidate campaign [skip ci]"
+            git push
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
