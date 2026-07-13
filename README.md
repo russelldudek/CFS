@@ -22,7 +22,7 @@ The candidate vision argues for one trusted operating reality: shared data meani
 - `sources.md`
 
 ## Publication
-The committed workflow regenerates and validates every document before publishing the candidate site.
+The committed workflow regenerates and validates every document before publishing the candidate site. This reviewed merge intentionally requests a verified campaign build.
 
 ## Independent-work notice
 This repository is an independent candidate work product by Russell Dudek. It is not an official CFS or end-client publication and does not imply endorsement.
