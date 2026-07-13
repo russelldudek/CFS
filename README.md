@@ -18,8 +18,11 @@ The candidate vision argues for one trusted operating reality: shared data meani
 ## Brand and research
 - `brand-intelligence.md`
 - `brand-tokens.css`
-- `assets/brand/cfs-logo.svg`
+- `assets/brand/cfs-logo.jpg`
 - `sources.md`
+
+## Publication
+The committed workflow regenerates and validates every document before publishing the candidate site.
 
 ## Independent-work notice
 This repository is an independent candidate work product by Russell Dudek. It is not an official CFS or end-client publication and does not imply endorsement.
