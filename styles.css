@@ -134,11 +134,11 @@ h1 { font-size: clamp(3.1rem, 6.3vw, 7.4rem); max-width: 9.8ch; margin-top: 1.4r
 .proof-trail { position: relative; display: grid; gap: 1rem; }
 .proof-trail::before { content: ""; position: absolute; left: 13.3rem; top: 0; bottom: 0; width: 1px; background: var(--brand-line); }
 .proof-item { display: grid; grid-template-columns: 12rem 1fr; gap: 2.5rem; padding: 1.2rem 0; }
-.proof-role { text-align: right; }
+.proof-role { text-align: right; padding-right: .4rem; min-width: 0; }
 .proof-role strong { display:block; color: var(--brand-primary); }
 .proof-role span { font-size: .78rem; color: var(--muted); }
 .proof-copy { position: relative; max-width: 62rem; }
-.proof-copy::before { content:""; position:absolute; left:-2.72rem; top:.35rem; width:.7rem; height:.7rem; border-radius:50%; background: var(--campaign-focus); box-shadow:0 0 0 5px var(--brand-paper); }
+.proof-copy::before { content:""; position:absolute; left:-1.6rem; top:.35rem; width:.7rem; height:.7rem; border-radius:50%; background: var(--campaign-focus); box-shadow:0 0 0 5px var(--brand-paper); }
 .proof-copy p { margin: 0; }
 
 .objection { display:grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.18); }

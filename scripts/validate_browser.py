@@ -81,6 +81,18 @@ def main() -> None:
                     findings.append(f"{route} {width}x{height}: broken images {data['badImages']}")
                 if errors:
                     findings.append(f"{route} {width}x{height}: {errors}")
+                if route == "index.html" and width > 840:
+                    overlaps = page.evaluate("""() => [...document.querySelectorAll('.proof-item')].map(item => {
+                        const role = item.querySelector('.proof-role strong');
+                        const copy = item.querySelector('.proof-copy');
+                        const marker = getComputedStyle(copy, '::before');
+                        const roleRect = role.getBoundingClientRect();
+                        const copyRect = copy.getBoundingClientRect();
+                        const markerLeft = copyRect.left + parseFloat(marker.left);
+                        return {name: role.textContent.trim(), roleRight: roleRect.right, markerLeft};
+                    }).filter(item => item.roleRight > item.markerLeft - 4)""")
+                    if overlaps:
+                        findings.append(f"{route} {width}x{height}: proof labels overlap markers {overlaps}")
                 passes += 1
                 page.close()
 
