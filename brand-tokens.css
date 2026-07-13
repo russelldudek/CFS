@@ -1,0 +1,15 @@
+:root {
+  --brand-primary: #30246c; /* source-sampled from official CFS logo */
+  --brand-primary-deep: #21184e; /* source-sampled/corrected for contrast */
+  --brand-primary-soft: #edeaf8; /* candidate-derived tint */
+  --brand-ink: #17151d;
+  --brand-paper: #fbfaf7;
+  --brand-white: #ffffff;
+  --brand-line: #d9d5e5;
+  --campaign-focus: #e05a47; /* candidate-original role accent */
+  --campaign-focus-soft: #fff0ec;
+  --campaign-signal: #14877e; /* candidate-original data-quality accent */
+  --campaign-signal-soft: #e5f5f3;
+  --muted: #67636f;
+  --shadow: 0 24px 70px rgba(33, 24, 78, .14);
+}
