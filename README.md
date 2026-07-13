@@ -21,5 +21,8 @@ The candidate vision argues for one trusted operating reality: shared data meani
 - `assets/brand/cfs-logo.jpg`
 - `sources.md`
 
+## QA note
+The proof section uses the heading “An operator who turns technology into better operations.” Timeline markers are regression-tested so they cannot overlap or clip company labels at desktop widths.
+
 ## Independent-work notice
 This repository is an independent candidate work product by Russell Dudek. It is not an official CFS or end-client publication and does not imply endorsement.
